@@ -496,3 +496,198 @@ If you want, next we can do:
 *   A small “**list of 10 must-know Apigee policies**” with one-line explanation each,
 *   Or mock interview Q&A only about **policies + conditional flows + pre/post flows**.
 
+# Q3. What is no target proxy ?
+
+* * *
+
+1\. First, what happens in a _normal_ Apigee proxy?
+---------------------------------------------------
+
+Normally the flow is:
+
+**Client → Apigee → Backend service**
+
+In Apigee words:
+
+*   **ProxyEndpoint** = front door (client calls here)
+*   **TargetEndpoint** = backend (Apigee forwards request here)
+
+So a normal proxy is like:
+
+> “I received the request, I apply policies, then I send it to **some backend URL** and return the backend’s response.”
+
+* * *
+
+2\. What is a **No Target Proxy**?
+----------------------------------
+
+A **No Target Proxy** (also called _targetless proxy_) is:
+
+> An Apigee proxy **that has no backend (no TargetEndpoint)**.  
+> Apigee itself handles the request and sends the response.
+
+So the flow becomes:
+
+**Client → Apigee → (no backend) → Apigee sends response**
+
+There is **no call to any external service**.
+
+*   You **still have ProxyEndpoint**
+*   But you **do NOT have TargetEndpoint**
+
+* * *
+
+3\. Simple real-life example
+----------------------------
+
+Imagine:
+
+*   In a normal case:  
+    Customer calls **reception** → receptionist forwards call to **some department** → answer comes back.
+*   In a **No Target** case:  
+    Customer calls reception  
+    Receptionist already knows the answer  
+    👉 She answers directly, **no need to transfer** to any department.
+
+That’s exactly **No Target Proxy**:
+
+*   Request comes to Apigee
+*   Apigee replies directly (using policies)
+*   No other backend server is involved
+
+* * *
+
+4\. When do we use No Target Proxy?
+-----------------------------------
+
+### ✅ 1) Mock / Dummy API (for testing)
+
+You want to give frontend team **some API URL** to develop UI,  
+but the real backend is not ready yet.
+
+So you create a **No Target Proxy**:
+
+*   Any call to `/users` returns a **fixed sample JSON** from Apigee itself.
+
+Example response from Apigee (no backend):
+
+```json
+{
+  "userId": 123,
+  "name": "Test User",
+  "status": "mock-data"
+}
+```
+
+Frontend can start development,  
+backend team can work in parallel.
+
+* * *
+
+### ✅ 2) OAuth token endpoint / security endpoint
+
+Often, **/oauth/token** API in Apigee is a **No Target Proxy**.
+
+*   Client calls `/oauth/token`
+*   Apigee uses `OAuthV2` policy to:
+    *   verify client
+    *   create token
+*   Apigee sends back access token directly
+
+No external backend needed —  
+all work is done by Apigee policies.
+
+* * *
+
+### ✅ 3) Simple logic APIs inside Apigee
+
+Sometimes you want:
+
+*   Small APIs that do only:
+    *   header handling
+    *   variable calculations
+    *   maybe call _another_ API via ServiceCallout
+
+Example:
+
+*   Client calls `/status`
+*   Apigee:
+    *   just returns `"OK"` with some metadata
+    *   or checks something and then replies
+
+If you don’t have a real backend server for this,  
+you can use a **No Target Proxy**.
+
+* * *
+
+### ✅ 4) Aggregator / Orchestrator APIs (advanced, later)
+
+Apigee can call **other APIs** itself using `ServiceCallout` policy.
+
+Flow:
+
+*   Client → No Target Proxy
+*   Inside Apigee:
+    *   call API A
+    *   call API B
+    *   combine their responses
+*   Apigee returns **combined response** to client
+
+Still: there is **no TargetEndpoint**.  
+External calls happen via **policies**, not via TargetEndpoint.
+
+(This is more advanced, but good to know for later/interview.)
+
+* * *
+
+5\. How does it look technically?
+---------------------------------
+
+In a **normal** proxy, you have something like:
+
+```xml
+<TargetEndpoint name="default">
+  <HTTPTargetConnection>
+    <URL>https://backend.mycompany.com/service</URL>
+  </HTTPTargetConnection>
+</TargetEndpoint>
+```
+
+In a **No Target Proxy**:
+
+*   This **TargetEndpoint section does not exist**
+*   Or there is a `<NoTargetEndpoint/>` style configuration (depending on UI/implementation)
+
+Instead, in `ProxyEndpoint` flows you might have policies like:
+
+*   `AssignMessage` → set response body and status code
+*   `RaiseFault` → send custom error
+*   `OAuthV2` → issue token
+*   `MessageLogging` → log things
+
+So Apigee builds the response **using policies only**.
+
+Example idea (in words, not exact code):
+
+> In PreFlow Response:
+> 
+> *   AssignMessage → set body = `{ "status": "ok" }`, status code = 200
+>     
+
+No backend call.
+
+* * *
+
+6\. Summary in one line (for interview)
+---------------------------------------
+
+You can say:
+
+> “A **No Target Proxy** in Apigee is an API proxy that has **no TargetEndpoint** — Apigee itself handles the request and responds directly, without calling any backend. It’s used for mock APIs, OAuth token generation, simple internal utilities, or orchestration done entirely through policies.”
+
+If they ask for an example:
+
+> “For example, we can build `/oauth/token` as a no-target proxy where the OAuthV2 policy validates the client and generates tokens, and Apigee sends the response directly without any backend service.”
+
+* * *
+
