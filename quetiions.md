@@ -1192,4 +1192,6 @@ If you want, next I can:
 *   Show you a **very small sample XML** of a Quota policy and explain each line in simple words,
 *   Or help you build **2–3 scenario-based answers** (like “free vs paid” or “per IP limit”) to speak confidently in interviews.
 
+# Q5. Types is security policy in APIGREE ? 
+<img width="361" height="360" alt="image" src="https://github.com/user-attachments/assets/cb9e17bc-f797-4c78-aeb2-c18c5af0b212" />
 
