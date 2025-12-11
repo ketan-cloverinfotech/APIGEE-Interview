@@ -243,7 +243,7 @@ If you want, next I can show:
 *   Or help you prepare **2–3 scenario-based answers** only for interview.
 
 
-# What is policies in APIGEE
+# Q2. What is policies in APIGEE and what common diffrent types of policies availble in APIGEE ?
 
 * * *
 
