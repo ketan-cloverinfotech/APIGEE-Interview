@@ -1,4 +1,4 @@
-## 1. What is conditional flow In APIGEE
+# 1. What is conditional flow In APIGEE
 
 ANSWER
 * * *
@@ -243,6 +243,256 @@ If you want, next I can show:
 *   Or help you prepare **2–3 scenario-based answers** only for interview.
 
 
+# What is policies in APIGEE
 
----
-Powered by [ChatGPT Exporter](https://www.chatgptexporter.com)
+* * *
+
+1\. Super simple definition
+---------------------------
+
+In **Apigee**, a **policy** is:
+
+> 🧩 **A ready-made rule or feature that you attach to your API, without writing code.**
+
+Like:
+
+*   “Check API key”
+*   “Limit calls”
+*   “Convert XML to JSON”
+*   “Log this request”
+
+You **don’t** write Java/Node code – you just **add a policy** in the proxy.
+
+* * *
+
+2\. Real-life example (non-technical)
+-------------------------------------
+
+Imagine a **main gate** of an office:
+
+At the gate, security can apply different **rules**:
+
+1.  Check ID card
+2.  Check bag
+3.  Record entry in register
+4.  Limit visitor count
+
+Each rule is like an **Apigee policy**:
+
+*   “Check ID card” → **Security policy**
+*   “Record entry” → **Logging policy**
+*   “Limit visitors” → **Quota / Rate limit policy**
+
+You decide:  
+👉 “At this gate, apply rules 1, 3, and 4”  
+In Apigee:  
+👉 “On this API, apply policies A, B, C”
+
+* * *
+
+3\. Where are policies used?
+----------------------------
+
+In an Apigee **API Proxy**, you have flows:
+
+*   **PreFlow** – always runs
+*   **Conditional Flows** – run only when condition true
+*   **PostFlow** – always runs later
+
+Inside each flow, you attach **policies**.
+
+So you can think:
+
+> **Flow = when to run**  
+> **Policy = what to do**
+
+* * *
+
+4\. Common types of policies (with simple examples)
+---------------------------------------------------
+
+### 1️⃣ Security policies 🔐
+
+Used to **secure** your API.
+
+*   **VerifyAPIKey** – check if client sent a valid API key
+*   **OAuthV2** – validate access token
+*   **VerifyJWT** – validate JWT token
+
+🟢 Example:  
+For `/payments` API, you add:
+
+*   `VerifyAPIKey` → only registered apps can call
+*   `OAuthV2` → only users with valid token can access
+
+* * *
+
+### 2️⃣ Traffic control policies 🚦
+
+Used to **control how many requests** come.
+
+*   **SpikeArrest** – stop sudden burst of traffic
+    *   e.g. `10 requests/second`
+*   **Quota** – limit total requests
+    *   e.g. `1000 requests/day` per app
+
+🟢 Example:  
+Free plan:
+
+*   `Quota` → 1000 requests/day
+*   `SpikeArrest` → 5 requests/second
+
+Paid plan:
+
+*   `Quota` → 10,000 requests/day
+*   `SpikeArrest` → 50 requests/second
+
+These are all **policies**, just attached with different values.
+
+* * *
+
+### 3️⃣ Transform / Message policies 🔁
+
+Used to **change the request or response**.
+
+*   **AssignMessage** – change URL, headers, body etc.
+*   **JSONToXML** / **XMLToJSON** – convert formats
+*   **ExtractVariables** – read data from path, header, body into variables
+
+🟢 Example:
+
+Client sends:
+
+```json
+{ "userId": 123 }
+```
+
+Backend needs:
+
+```json
+{ "id": 123 }
+```
+
+You can use:
+
+*   `ExtractVariables` → read `userId`
+*   `AssignMessage` → create new body with `"id"`
+
+No code in backend changed. Apigee handled it with **policies**.
+
+* * *
+
+### 4️⃣ Error handling policies ⚠️
+
+*   **RaiseFault** – send custom error message
+*   You can show friendly error instead of ugly backend error.
+
+🟢 Example:
+
+If backend is down, instead of:
+
+```json
+{ "error": "java.net.SocketTimeoutException" }
+```
+
+Use `RaiseFault` to send:
+
+```json
+{
+  "code": "SERVICE_UNAVAILABLE",
+  "message": "Please try again after some time."
+}
+```
+
+* * *
+
+### 5️⃣ Logging / Analytics policies 📋
+
+*   **MessageLogging** – send logs to log system (like syslog, log server)
+*   You can log headers, paths, IDs etc.
+
+🟢 Example:
+
+Log every `/login` call with:
+
+*   User ID
+*   Client IP
+*   Time
+
+You just attach a `MessageLogging` policy in that flow.
+
+* * *
+
+5\. How policy looks (just to feel it)
+--------------------------------------
+
+Don’t worry about XML; read it like English:
+
+```xml
+<SpikeArrest name="Limit-Per-Second">
+  <Rate>10ps</Rate>
+</SpikeArrest>
+```
+
+Meaning:
+
+> Add a **SpikeArrest policy** named `Limit-Per-Second`  
+> allow only **10 calls per second**.
+
+Then you attach this in a Request flow:
+
+```xml
+<Step>
+  <Name>Limit-Per-Second</Name>
+</Step>
+```
+
+So:
+
+*   **Policy definition** → what it does
+*   **Step** → where it runs (PreFlow / conditional flow / PostFlow)
+
+* * *
+
+6\. One small full example in plain English
+-------------------------------------------
+
+Let’s say you have an API:  
+`GET /v1/users`
+
+You decide in Apigee:
+
+1.  Check API key
+2.  Limit requests to 1000 per day
+3.  Log each request
+
+So you attach:
+
+*   `VerifyAPIKey` policy
+*   `Quota` policy
+*   `MessageLogging` policy
+
+No backend change, no Java code.  
+Just **add 3 policies** in the proxy.
+
+* * *
+
+7\. How to answer in interview (simple version)
+-----------------------------------------------
+
+You can say something like:
+
+> “In Apigee, **policies are ready-made building blocks** that you attach to your API proxy to handle common tasks like security, rate limiting, transformation, logging, and error handling—without writing custom code.  
+> For example, I can use `VerifyAPIKey` to validate keys, `SpikeArrest` to prevent traffic spikes, `Quota` to control daily usage, and `AssignMessage` to modify the request or response.”
+
+If they ask example, add:
+
+> “For a payment API, I might add `VerifyAPIKey` and `OAuthV2` for security, `Quota` for rate limiting, and `MessageLogging` to log all payment calls.”
+
+* * *
+
+If you want, next we can do:
+
+*   A small “**list of 10 must-know Apigee policies**” with one-line explanation each,
+*   Or mock interview Q&A only about **policies + conditional flows + pre/post flows**.
+
