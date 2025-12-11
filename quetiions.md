@@ -691,3 +691,505 @@ If they ask for an example:
 
 * * *
 
+# what is shared flow ?
+
+In Apigee, a **Shared Flow** is basically:
+
+> 🔁 **A reusable mini-flow of policies** that you can plug into many API proxies.
+
+Think of it like a **common function** in programming, but for Apigee flows.
+
+* * *
+
+1\. First, problem without shared flow
+--------------------------------------
+
+Imagine you have 20 APIs:
+
+*   `/login`
+*   `/payments`
+*   `/orders`
+*   `/profile`
+*   … etc.
+
+And for **each** API you need to:
+
+1.  Verify API key
+2.  Validate OAuth token
+3.  Add some headers
+4.  Log request details
+
+Without shared flows:
+
+*   You would copy the **same policies** again and again into every proxy.
+*   Any change (e.g. new header, new rule) → you must edit **20 proxies** 😫
+
+This becomes:
+
+*   Hard to maintain
+*   Error-prone
+*   Time-consuming
+
+* * *
+
+2\. What is a Shared Flow?
+--------------------------
+
+A **Shared Flow** is:
+
+> 🧱 A separate “bundle” that contains **policies + steps + conditions**, which you design once and then **reuse** in many API proxies.
+
+You then “call” this shared flow from your proxy using a special policy called **FlowCallout**.
+
+So:
+
+*   Create once → use many times.
+
+Exactly how we use **functions/methods** in code.
+
+* * *
+
+3\. Simple real-life example
+----------------------------
+
+Think about a **company gate system** again:
+
+Every visitor should go through:
+
+1.  ID card check
+2.  Face capture
+3.  SMS notification to host
+
+Now, whether the person is:
+
+*   employee
+*   vendor
+*   customer
+*   auditor
+
+… the **entry process** is same.
+
+So instead of writing rules separately for each type of visitor,  
+you create **one standard entry procedure** and reuse it for everyone.
+
+In Apigee terms:
+
+*   “Standard entry procedure” = **Shared Flow**
+*   “Run this shared flow here” = **FlowCallout**
+
+* * *
+
+4\. What can you put inside a Shared Flow?
+------------------------------------------
+
+Inside a **Shared Flow**, you can use:
+
+*   Policies (like you use in normal proxy):
+    *   Security policies (VerifyAPIKey, OAuthV2, VerifyJWT)
+    *   Logging (MessageLogging)
+    *   Transformations (AssignMessage, ExtractVariables, etc.)
+    *   Error handling (RaiseFault)
+*   Conditions
+*   Assign / extract variables
+
+You **do not** define backend (TargetEndpoint) there.  
+Shared flow is only about **logic**, not where to send request.
+
+* * *
+
+5\. Typical use cases (very important for interviews)
+-----------------------------------------------------
+
+### ✅ 1) Common security logic
+
+Example:
+
+*   Check API key
+*   Validate OAuth token
+*   Maybe check some custom header
+*   If fail → send common error format
+
+You put all this in a **Shared Flow** called, say, `SF-Common-Security`.
+
+Then every API proxy does:
+
+*   In PreFlow → `FlowCallout` to `SF-Common-Security`.
+
+So your security rules are **centralized**.
+
+* * *
+
+### ✅ 2) Common logging / audit
+
+You want every API to log:
+
+*   client id
+*   path
+*   status code
+*   response time
+
+You create a shared flow:
+
+*   Policies: `StatisticsCollector` / `MessageLogging` / `AssignMessage` etc.
+
+And you call this shared flow:
+
+*   In PostFlow of all proxies.
+
+Now, if logging format changes,  
+you edit only **1 shared flow**, not 50 proxies.
+
+* * *
+
+### ✅ 3) Standard error handling
+
+You want all APIs to:
+
+*   return error JSON in same format
+*   mask backend internal errors
+*   add correlation id
+
+You create shared flow `SF-Error-Handler` that:
+
+*   reads status code / variables
+*   sets friendly error JSON
+*   sets headers
+
+Then you call this shared flow in **FaultRules / PostClientFlow** etc.
+
+* * *
+
+### ✅ 4) Common header / metadata handling
+
+Suppose all your APIs must:
+
+*   add header `X-Company: ABC`
+*   set CORS headers for frontend
+*   normalize some request header
+
+Put these in a shared flow `SF-Common-Headers` and reuse.
+
+* * *
+
+6\. How is shared flow used?
+----------------------------
+
+Two parts:
+
+### 1️⃣ Create the shared flow (once)
+
+In Apigee:
+
+*   Go to **Shared Flows**
+*   Create a new one, e.g. `SF-Common-Security`
+*   Inside it:
+    *   Add policies like `VerifyAPIKey`, `OAuthV2`, `RaiseFault`, `AssignMessage`
+    *   Add conditions as needed
+
+So Shared Flow has its **own flows** similar to a proxy, but no backend.
+
+* * *
+
+### 2️⃣ Call the shared flow from a proxy
+
+In your API proxy, you use a policy called **FlowCallout**.
+
+Simple idea (in English):
+
+> “At this point in my request/response flow, please execute that shared flow.”
+
+Example conceptual snippet (just to understand, not to memorize):
+
+```xml
+<FlowCallout name="Call-Common-Security">
+  <SharedFlowBundle>SF-Common-Security</SharedFlowBundle>
+</FlowCallout>
+```
+
+Then in your PreFlow:
+
+```xml
+<Request>
+  <Step>
+    <Name>Call-Common-Security</Name>
+  </Step>
+</Request>
+```
+
+So:
+
+*   When request comes in,
+*   PreFlow runs,
+*   `FlowCallout` triggers `SF-Common-Security`,
+*   That shared flow runs its policies (verify key, OAuth, etc.),
+*   Then control returns to the main proxy flow.
+
+* * *
+
+7\. Important benefits (how to explain smartly)
+-----------------------------------------------
+
+1.  **Reusability**
+    *   You don’t repeat same logic in every proxy.
+    *   Central logic, multiple uses.
+2.  **Easy maintenance**
+    *   If a rule changes (e.g., token validation logic),  
+        you update **one shared flow** → all proxies automatically use latest.
+3.  **Standardization**
+    *   All APIs follow same:
+        *   security pattern
+        *   logging style
+        *   error format
+    *   Good for large organizations.
+4.  **Cleaner proxies**
+    *   Proxies focus on business-specific logic.
+    *   Common things are pulled out into shared flows.
+
+* * *
+
+8\. How to explain in interview (short version)
+-----------------------------------------------
+
+You can say something like:
+
+> “A **Shared Flow** in Apigee is a reusable group of policies and flow logic that can be called from multiple API proxies using a `FlowCallout` policy. It’s mainly used to centralize common tasks like authentication, logging, header handling, and error handling, so you don’t have to duplicate the same logic across many proxies. When we change a rule in the shared flow, all proxies using it automatically get the update.”
+
+If they ask for an example:
+
+> “For example, we had a shared flow `SF-Common-Security` which did API key verification, OAuth token validation, and some custom header checks. All our proxies called this shared flow in their PreFlow using `FlowCallout`, so security stayed consistent everywhere.”
+
+* * *
+
+If you’d like, next I can:
+
+*   Compare **Shared Flow vs Policy vs Conditional Flow** in one small table,
+*   Or help you prepare **5–6 short Q&A** only about Apigee basics (policy, flow, shared flow, no-target proxy) for fast revision.
+
+
+# Q4. What is Quota policy ?
+
+* * *
+
+1\. Simple one-line meaning
+---------------------------
+
+In Apigee, a **Quota policy** is:
+
+> **A rule that says: “This app can call this API only X times in Y time period.”**
+
+Examples like:
+
+*   1,000 calls **per day**
+*   100 calls **per minute**
+*   10,000 calls **per month**
+
+After the limit is crossed → Apigee blocks further calls.
+
+* * *
+
+2\. Real-life simple example
+----------------------------
+
+Think of a **mobile data plan** 📶:
+
+*   You get **2 GB per day**
+*   You can use it anytime in that day
+*   After 2 GB is over → speed reduces / blocked
+
+Quota policy is same idea, but for **number of API calls** instead of GB.
+
+Another example:
+
+*   Free plan: up to **1000 API calls per day**
+*   Paid plan: up to **100,000 API calls per day**
+
+Apigee enforces this automatically.
+
+* * *
+
+3\. What exactly does Quota policy do?
+--------------------------------------
+
+For every request:
+
+1.  Checks how many calls have already been made in the current time window  
+    (for example: today, this hour, this minute)
+2.  If total used < allowed →  
+    ✅ **Allow** the request and increase the counter
+3.  If total used ≥ allowed →  
+    ❌ **Block** the request and return error (usually `429 Too Many Requests`)  
+    (or a custom error if you set it)
+
+So it is a **counter** that resets after the time period.
+
+* * *
+
+4\. Important parts of a Quota (concepts only)
+----------------------------------------------
+
+A quota normally has 3 core settings:
+
+1.  **Allow** → how many requests
+    *   e.g. 1000
+2.  **Interval** → size of window
+    *   e.g. 1
+3.  **TimeUnit** → time unit
+    *   e.g. `day`, `hour`, `minute`, `month`
+
+So:
+
+*   **Allow = 1000**, **Interval = 1**, **TimeUnit = day**  
+    → “Allow 1000 requests every 1 day.”
+*   **Allow = 100**, **Interval = 1**, **TimeUnit = minute**  
+    → “Allow 100 requests every 1 minute.”
+
+* * *
+
+5\. Very simple numeric example
+-------------------------------
+
+### Example 1: Free plan — 1000 calls per day
+
+You design quota like:
+
+*   **Allow**: 1000
+*   **Interval**: 1
+*   **TimeUnit**: `day`
+
+Imagine timeline for one app (say App A):
+
+*   00:00 – Start of day → counter = 0
+*   After some time → app has made 500 calls → counter = 500 → OK
+*   Later → total becomes 1000 → still OK
+*   Next call (1001st) in same day → Apigee blocks it
+    *   Response → `429 Too Many Requests` (or your custom error)
+
+At **midnight**, new day starts → counter resets → app can again call 1000 times.
+
+* * *
+
+### Example 2: 10 requests per minute
+
+*   **Allow**: 10
+*   **Interval**: 1
+*   **TimeUnit**: `minute`
+
+From 10:00:00 to 10:00:59 → max 10 calls allowed  
+From 10:01:00 to 10:01:59 → again 10 calls allowed  
+…and so on.
+
+If 11th call comes in the same minute → request blocked.
+
+* * *
+
+6\. Per what? (Per app, per API key, per IP?)
+---------------------------------------------
+
+Quota policy can also decide **who shares the limit**:
+
+*   Per **app** (common)
+*   Per **developer**
+*   Per **API key** / `client_id`
+*   Per **IP address** (less common)
+*   Or even per some custom field (like plan type)
+
+Example:
+
+*   You want **1000/day per app**, not for the entire API.
+
+Then, in Quota, you configure a **“identifier”** (in XML it’s like `Identifier ref="client_id"` or similar), so each app has its **own counter**.
+
+So:
+
+*   App A → 1000/day
+*   App B → 1000/day
+
+They don’t affect each other’s quota.
+
+* * *
+
+7\. Where is quota policy used in flow?
+---------------------------------------
+
+Typical pattern:
+
+1.  Client calls API
+2.  Apigee:
+    *   Verifies key/token (**security policies**)
+    *   Then **checks quota**
+3.  If within quota → request goes to backend
+4.  If over quota → Apigee stops here and returns error
+
+In terms of Apigee flows:
+
+*   You generally put Quota policy in **ProxyEndpoint → PreFlow (Request)** or in a **conditional flow**, after authentication.
+
+* * *
+
+8\. Quota vs Spike Arrest (very common confusion)
+-------------------------------------------------
+
+Both are “rate control” policies, but:
+
+### 🧮 **Quota** (Think data plan)
+
+*   Counts **total number** of calls over a **longer time** (day, month, hour)
+*   Good for **plans/usage limits**:
+    *   “Free users: 1000/day”
+    *   “Gold users: 50,000/day”
+
+### 🌊 **SpikeArrest** (Think “speed breaker”)
+
+*   Controls **speed of traffic** at a given moment
+    *   e.g. “10 calls per second”
+*   Protects from **sudden bursts** or DoS-like traffic
+*   Does **not** care about full-day total
+
+You can even use **both**:
+
+*   SpikeArrest → smooth out sudden spikes
+*   Quota → enforce plan limits overall
+
+* * *
+
+9\. Simple scenario: free vs paid in one API
+--------------------------------------------
+
+Let’s say you have one payment API, but two types of users:
+
+*   **Free plan** → 1000 calls/day
+*   **Paid plan** → 50,000 calls/day
+
+You can:
+
+1.  Read plan type from a header, token, or developer/app attribute
+2.  Use conditional flows/Quota to apply different values
+
+Very simplified logic in words:
+
+*   If `plan = free` → apply QuotaFree (1000/day)
+*   If `plan = paid` → apply QuotaPaid (50000/day)
+
+Now Apigee enforces business rules for you.
+
+* * *
+
+10\. How to explain quota policy in an interview (short answer)
+---------------------------------------------------------------
+
+You can say:
+
+> “The **Quota policy** in Apigee is used to limit how many times a client can call an API in a given time window—like 1000 requests per day or 100 per minute. It maintains a counter per key/app/developer (based on the identifier) and, once the limit is exceeded, Apigee returns a 429 or custom error without hitting the backend. We usually use it for enforcing API plans, protecting backend resources, and differentiating free vs paid usage.”
+
+If they ask for a simple example:
+
+> “For example, I can set a Quota policy with `Allow=1000`, `Interval=1`, `TimeUnit=day` and identify by API key. Then each app can only make 1000 calls per day; the 1001st call in that day will be blocked by Apigee.”
+
+* * *
+
+If you want, next I can:
+
+*   Show you a **very small sample XML** of a Quota policy and explain each line in simple words,
+*   Or help you build **2–3 scenario-based answers** (like “free vs paid” or “per IP limit”) to speak confidently in interviews.
+
+
